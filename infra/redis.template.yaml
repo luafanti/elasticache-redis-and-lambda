@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Redis stack
+Parameters:
+  VpcId:
+    Type: String
+  SubnetGroupIds:
+    Type: List<String>
+  EngineVersion:
+    Type: String
+    Default: 7.0
+  InstanceType:
+    Type: String
+    Default: cache.t2.small
+  ReplicaCount:
+    Type: Number
+    Default: 1
+  PortNumber:
+    Type: Number
+    Default: 6379
+  MultiAZSupport:
+    Type: String
+    Default: false
+  SnapshotRetentionPeriodInDays:
+    Type: Number
+    Default: 0
+  LogsRetentionInDays:
+    Type: Number
+    Default: 30
+
+Resources:
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow lambda to access Redis
+      SecurityGroupIngress:
+        - Description: HTTP Access from Lambda Function to Internet
+          IpProtocol: tcp
+          FromPort: !Ref PortNumber
+          ToPort: !Ref PortNumber
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VpcId
+
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Redis subnets
+      SubnetIds: !Ref SubnetGroupIds
+
+  RedisCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: redis-caching-credentials
+      Description: Dynamically generated secret for Redis AuthToken
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "default"}'
+        GenerateStringKey: authToken
+        PasswordLength: 32
+        ExcludePunctuation: true
+
+  RedisCluster:
+    Type: AWS::ElastiCache::ReplicationGroup
+    Properties:
+      ReplicationGroupId: redis-caching-cluster
+      ReplicationGroupDescription: Redis caching cluster
+      Engine: redis
+      EngineVersion: !Ref EngineVersion
+      Port: !Ref PortNumber
+      CacheNodeType: !Ref InstanceType
+      NumCacheClusters: !Ref ReplicaCount
+      MultiAZEnabled: !Ref MultiAZSupport
+      AutomaticFailoverEnabled: !Ref MultiAZSupport
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      TransitEncryptionEnabled: true
+      AuthToken: !Join
+        - ''
+        - - '{{resolve:secretsmanager:'
+          - !Ref RedisCredentialsSecret
+          - ':SecretString:authToken}}'
+      PreferredMaintenanceWindow: 'sun:00:00-sun:06:00'
+      LogDeliveryConfigurations:
+        - DestinationDetails:
+            CloudWatchLogsDetails:
+              LogGroup: !Ref EngineLogLogGroup
+          DestinationType: cloudwatch-logs
+          LogFormat: json
+          LogType: engine-log
+        - DestinationDetails:
+            CloudWatchLogsDetails:
+              LogGroup: !Ref SlowLogLogGroup
+          DestinationType: cloudwatch-logs
+          LogFormat: json
+          LogType: slow-log
+      SecurityGroupIds:
+        - !Ref RedisSecurityGroup
+      SnapshotRetentionLimit: !Ref SnapshotRetentionPeriodInDays
+      SnapshotWindow: '00:00-03:00'
+
+  SlowLogLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/elastic-cache/redis/slow-log'
+      RetentionInDays: !Ref LogsRetentionInDays
+
+  EngineLogLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/elastic-cache/redis/engine-log'
+      RetentionInDays: !Ref LogsRetentionInDays
+
+  RedisEndpointSSM:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: '/caching/redis/redisUrl'
+      Type: String
+      Description: Redis caching cluster URL
+      Value: !Join
+        - ''
+        - - 'rediss://'
+          - !GetAtt
+            - RedisCluster
+            - PrimaryEndPoint.Address
+          - ':'
+          - !GetAtt
+            - RedisCluster
+            - PrimaryEndPoint.Port
+
+  RedisClusterIdSSM:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: '/caching/redis/clusterId'
+      Type: String
+      Description: Redis caching cluster Id
+      Value: !Ref RedisCluster

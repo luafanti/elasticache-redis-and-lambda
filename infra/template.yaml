@@ -1,0 +1,15 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ElastiCache Redis & Lambda - API caching
+Resources:
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'vpc.template.yaml'
+
+  RedisStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        VpcId: !GetAtt VpcStack.Outputs.VPC
+        SubnetGroupIds: !GetAtt VpcStack.Outputs.PublicSubnets
+      TemplateURL: 'redis.template.yaml'
