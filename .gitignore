@@ -1,0 +1,7 @@
+*.iml
+.vscode
+.idea
+**.DS_Store
+.aws-sam
+node_modules
+dist

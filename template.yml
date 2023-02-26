@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Sample project demonstrate how cache API response using AWS Typescript Lambda and ElastiCache Redis
+Transform:
+  - AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Layers:
+      - !Ref RuntimeDependenciesLayer
+    Environment:
+      Variables:
+        REDIS_URL: !GetAtt RedisStack.Outputs.RedisEndpoint
+        REDIS_USERNAME: '{{resolve:secretsmanager:redis-caching-credentials:SecretString:username}}'
+        REDIS_AUTH_TOKEN: '{{resolve:secretsmanager:redis-caching-credentials:SecretString:authToken}}'
+    Runtime: nodejs16.x
+    MemorySize: 512
+    Timeout: 30
+
+Resources:
+  ExampleFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      Handler: dist/handlers/example.exampleHandler
+      VpcConfig:
+        SecurityGroupIds: [ !Ref LambdaEgressSecurityGroup ]
+        SubnetIds: !Split [ ',', !GetAtt VpcStack.Outputs.PublicSubnets ]
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /
+            Method: GET
+
+  LambdaEgressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Egress access for Web and Redis port
+      SecurityGroupEgress:
+        - Description: HTTP Access from Lambda Function to Internet
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - Description: HTTPS Access from Lambda Function to Internet
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - Description: Redis Access from Lambda Function
+          IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          CidrIp: 0.0.0.0/0
+      VpcId: !GetAtt VpcStack.Outputs.VPC
+
+  RuntimeDependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      LayerName: "api_caching_dependencies"
+      Description: Runtime dependencies for Lambdas
+      ContentUri: ./
+      CompatibleRuntimes:
+        - nodejs16.x
+      RetentionPolicy: Retain
+
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: './infra/vpc.template.yaml'
+
+  RedisStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        VpcId: !GetAtt VpcStack.Outputs.VPC
+        SubnetGroupIds: !GetAtt VpcStack.Outputs.PublicSubnets
+      TemplateURL: './infra/redis.template.yaml'
+
+Outputs:
+  WebEndpoint:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"

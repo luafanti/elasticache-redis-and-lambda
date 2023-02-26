@@ -76,7 +76,7 @@ Resources:
         - - '{{resolve:secretsmanager:'
           - !Ref RedisCredentialsSecret
           - ':SecretString:authToken}}'
-      PreferredMaintenanceWindow: 'sun:00:00-sun:06:00'
+      PreferredMaintenanceWindow: 'sun:04:00-sun:06:00'
       LogDeliveryConfigurations:
         - DestinationDetails:
             CloudWatchLogsDetails:
@@ -98,36 +98,28 @@ Resources:
   SlowLogLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/elastic-cache/redis/slow-log'
+      LogGroupName: !Sub '/aws/elasticache/redis/slow-log'
       RetentionInDays: !Ref LogsRetentionInDays
 
   EngineLogLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/elastic-cache/redis/engine-log'
+      LogGroupName: !Sub '/aws/elasticache/redis/engine-log'
       RetentionInDays: !Ref LogsRetentionInDays
 
-  RedisEndpointSSM:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: '/caching/redis/redisUrl'
-      Type: String
-      Description: Redis caching cluster URL
-      Value: !Join
-        - ''
-        - - 'rediss://'
-          - !GetAtt
-            - RedisCluster
-            - PrimaryEndPoint.Address
-          - ':'
-          - !GetAtt
-            - RedisCluster
-            - PrimaryEndPoint.Port
-
-  RedisClusterIdSSM:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: '/caching/redis/clusterId'
-      Type: String
-      Description: Redis caching cluster Id
-      Value: !Ref RedisCluster
+Outputs:
+  RedisEndpoint:
+    Description: Redis caching cluster URL
+    Value: !Join
+      - ''
+      - - 'rediss://'
+        - !GetAtt
+          - RedisCluster
+          - PrimaryEndPoint.Address
+        - ':'
+        - !GetAtt
+          - RedisCluster
+          - PrimaryEndPoint.Port
+  RedisClusterId:
+    Description: Redis caching cluster Id
+    Value: !Ref RedisCluster
