@@ -13,26 +13,44 @@ Globals:
         REDIS_URL: !GetAtt RedisStack.Outputs.RedisEndpoint
         REDIS_USERNAME: '{{resolve:secretsmanager:redis-caching-credentials:SecretString:username}}'
         REDIS_AUTH_TOKEN: '{{resolve:secretsmanager:redis-caching-credentials:SecretString:authToken}}'
+        EXTERNAL_API_URL: 'https://api.agify.io'
     Runtime: nodejs16.x
     MemorySize: 512
     Timeout: 30
+    Architectures:
+      - arm64
 
 Resources:
-  ExampleFunction:
+
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: './infra/vpc.template.yaml'
+
+  RedisStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        VpcId: !GetAtt VpcStack.Outputs.VPC
+        SubnetGroupIds: !GetAtt VpcStack.Outputs.PrivateSubnets
+      TemplateURL: './infra/redis.template.yaml'
+
+  ApiCachingFunction:
     Type: AWS::Serverless::Function
     Metadata:
       BuildMethod: makefile
     Properties:
-      Handler: dist/handlers/example.exampleHandler
+      Handler: dist/handlers/apiCachingHandler.handler
       VpcConfig:
         SecurityGroupIds: [ !Ref LambdaEgressSecurityGroup ]
-        SubnetIds: !Split [ ',', !GetAtt VpcStack.Outputs.PublicSubnets ]
+        SubnetIds: !Split [ ',', !GetAtt VpcStack.Outputs.PrivateSubnets ]
       Events:
         Api:
-          Type: Api
+          Type: HttpApi
           Properties:
             Path: /
-            Method: GET
+            Method: get
+            TimeoutInMillis: 10000
 
   LambdaEgressSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -68,20 +86,7 @@ Resources:
         - nodejs16.x
       RetentionPolicy: Retain
 
-  VpcStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: './infra/vpc.template.yaml'
-
-  RedisStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Parameters:
-        VpcId: !GetAtt VpcStack.Outputs.VPC
-        SubnetGroupIds: !GetAtt VpcStack.Outputs.PublicSubnets
-      TemplateURL: './infra/redis.template.yaml'
-
 Outputs:
   WebEndpoint:
-    Description: "API Gateway endpoint URL for Prod stage"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Description: "Cacheable API endpoint URL"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com?name=Artur"
