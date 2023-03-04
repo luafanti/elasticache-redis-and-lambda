@@ -17,15 +17,17 @@ Parameters:
   PortNumber:
     Type: Number
     Default: 6379
-  MultiAZSupport:
-    Type: String
-    Default: false
   SnapshotRetentionPeriodInDays:
     Type: Number
     Default: 0
   LogsRetentionInDays:
     Type: Number
     Default: 30
+  MultiAZ:
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
 
 Resources:
   RedisSecurityGroup:
@@ -67,8 +69,8 @@ Resources:
       Port: !Ref PortNumber
       CacheNodeType: !Ref InstanceType
       NumCacheClusters: !Ref ReplicaCount
-      MultiAZEnabled: !Ref MultiAZSupport
-      AutomaticFailoverEnabled: !Ref MultiAZSupport
+      MultiAZEnabled: !Ref MultiAZ
+      AutomaticFailoverEnabled: !Ref MultiAZ
       CacheSubnetGroupName: !Ref RedisSubnetGroup
       TransitEncryptionEnabled: true
       AuthToken: !Join

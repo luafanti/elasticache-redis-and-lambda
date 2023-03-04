@@ -18,6 +18,14 @@ Parameters:
   PrivateSubnet2CIDR:
     Type: String
     Default: 10.10.21.0/24
+  MultiAZ:
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+Conditions:
+  IsMultiAZ: !Equals [!Ref MultiAZ, 'true']
 
 Resources:
   VPC:
@@ -56,6 +64,7 @@ Resources:
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
+    Condition: IsMultiAZ
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [ 1, !GetAZs  '' ]
@@ -78,6 +87,7 @@ Resources:
 
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
+    Condition: IsMultiAZ
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [ 1, !GetAZs  '' ]
@@ -95,6 +105,7 @@ Resources:
 
   NatGateway2EIP:
     Type: AWS::EC2::EIP
+    Condition: IsMultiAZ
     DependsOn: InternetGatewayAttachment
     Properties:
       Domain: vpc
@@ -107,6 +118,7 @@ Resources:
 
   NatGateway2:
     Type: AWS::EC2::NatGateway
+    Condition: IsMultiAZ
     Properties:
       AllocationId: !GetAtt NatGateway2EIP.AllocationId
       SubnetId: !Ref PublicSubnet2
@@ -134,6 +146,7 @@ Resources:
       SubnetId: !Ref PublicSubnet1
 
   PublicSubnet2RouteTableAssociation:
+    Condition: IsMultiAZ
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PublicRouteTable
@@ -161,6 +174,7 @@ Resources:
       SubnetId: !Ref PrivateSubnet1
 
   PrivateRouteTable2:
+    Condition: IsMultiAZ
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
@@ -169,6 +183,7 @@ Resources:
           Value: !Sub ${StackName} Private Routes (AZ2)
 
   DefaultPrivateRoute2:
+    Condition: IsMultiAZ
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRouteTable2
@@ -176,6 +191,7 @@ Resources:
       NatGatewayId: !Ref NatGateway2
 
   PrivateSubnet2RouteTableAssociation:
+    Condition: IsMultiAZ
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateRouteTable2
@@ -192,31 +208,9 @@ Outputs:
   VPC:
     Description: A reference to the created VPC
     Value: !Ref VPC
-
   PublicSubnets:
     Description: A list of the public subnets
-    Value: !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ]]
-
+    Value: !If [IsMultiAZ, !Join [",", [!Ref PublicSubnet1, !Ref PublicSubnet2]], !Ref PublicSubnet1]
   PrivateSubnets:
     Description: A list of the private subnets
-    Value: !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ]]
-
-  PublicSubnet1:
-    Description: A reference to the public subnet in the 1st Availability Zone
-    Value: !Ref PublicSubnet1
-
-  PublicSubnet2:
-    Description: A reference to the public subnet in the 2nd Availability Zone
-    Value: !Ref PublicSubnet2
-
-  PrivateSubnet1:
-    Description: A reference to the private subnet in the 1st Availability Zone
-    Value: !Ref PrivateSubnet1
-
-  PrivateSubnet2:
-    Description: A reference to the private subnet in the 2nd Availability Zone
-    Value: !Ref PrivateSubnet2
-
-  NoIngressSecurityGroup:
-    Description: Security group with no ingress rule
-    Value: !Ref NoIngressSecurityGroup
+    Value: !If [IsMultiAZ, !Join [",", [!Ref PrivateSubnet1, !Ref PrivateSubnet2]], !Ref PrivateSubnet1]

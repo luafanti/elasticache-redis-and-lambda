@@ -4,6 +4,14 @@ Description: >-
 Transform:
   - AWS::Serverless-2016-10-31
 
+Parameters:
+  MultiAZ:
+    Type: String
+    Default: false
+    AllowedValues:
+      - 'true'
+      - 'false'
+
 Globals:
   Function:
     Layers:
@@ -21,10 +29,11 @@ Globals:
       - arm64
 
 Resources:
-
   VpcStack:
     Type: AWS::CloudFormation::Stack
     Properties:
+      Parameters:
+        MultiAZ: !Ref MultiAZ
       TemplateURL: './infra/vpc.template.yaml'
 
   RedisStack:
@@ -33,6 +42,7 @@ Resources:
       Parameters:
         VpcId: !GetAtt VpcStack.Outputs.VPC
         SubnetGroupIds: !GetAtt VpcStack.Outputs.PrivateSubnets
+        MultiAZ: !Ref MultiAZ
       TemplateURL: './infra/redis.template.yaml'
 
   ApiCachingFunction:
