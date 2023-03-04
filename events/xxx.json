@@ -1,5 +1,0 @@
-ip="4.3.2.54" date="04/Mar/2023:10:39:38 +0000" http_r="POST /c9dfa1f53sdfsdfsffdd HTTP/1.1" body='{"method":"getTokenAccountsByOwner","jsonrpc":"2.0","params":["EtEfhjYKkcXsfsfffKFrJWLa1UQMn",{"programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"},{"encoding":"jsonParsed"}],"id":"e02a2de7-4f0d-402dd-bff82-8b1dfs1"}' st=200 bytes=40750 ref="" agent="node-fetch/1.0 (+https://github.com/bitinn/node-fetch)" fw="4.3.2.54" host="domain.com" sn="domain.com" rt="0.032" ua="127.0.0.1:8899" us="200" ut="0.032" ul="40750" cs=""
-
-
-
-ip="%{IP:ip}".*?body='{"method":"%{DATA:rpc_method}","jsonrpc":"%{DATA}"}'
