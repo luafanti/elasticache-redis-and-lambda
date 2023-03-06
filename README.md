@@ -2,16 +2,27 @@
 
 This repository contains an example of using in serverless application Redis to cache external API responses. 
 
-## Installation
+## Deployment Overview
 
-The demo can be installed using the CloudFormation template. The stack created with the default parameters will provision the following resources:
+The infrastructure in demo is provisioned using the CloudFormation template. The stack created with the default parameters will provide the following resources:
 
-- VPC with public & private subnet
+- VPC with single public & private subnet, and other base VPC components
 - NAT Gateway
 - ElastiCache Redis
-- TypeScript Lambda & Http ApiGateway
+- TypeScript Lambda & HTTP API Gateway
 
 ⚠️ Please note that your stack includes components (NAT & Redis) that will incur hourly costs even if you have AWS Free Tier.
+
+You can also create a stack in MultiAZ mode. Then the stack will create:
+
+- VPC with two public and two private subnets
+- 2 NAT Gateway, one per private subnet
+- ElastiCache Redis in Multi-AZ mode - one master and one replica instance
+- this same TypeScript Lambda
+
+⚠️⚠️⚠️ In Multi-AZ mode costs will be doubled due to two instances of NAT and Redis
+
+### Installation
 
 ```bash
 npm install 
@@ -25,18 +36,18 @@ To remove whole stack
 sam delete
 ```
 
-## How it works? 
+## Step-by-Step caching flow
 
 Flow is very simply... `ProxyLambda` first checks if response from External API exists in cache. As a cache key in this simple example, I just use the full request path also with query params. In complex API I can recommend a more advanced strategy for key generation. If response object exists in Redis cache, Lambda returns it directly. Otherwise, Lambda calls External API as before but additionally saves this response to the Redis cache. Thanks to this, a subsequent request to `ProxyLambda` for this same resource, will be returned from cache instead calling External API.
 
 Basically the two diagrams below should explain it all
 
 <p align="center">
-  <img alt="API caching with Redis -  component diagram" src="images/API%20caching%20with%20Redis%20&%20AWS%20Lambda%20-%20%20component%20diagram.png" width="400" height="300">
+  <img alt="API caching with Redis -  component diagram" src="images/API%20caching%20with%20Redis%20&%20AWS%20Lambda%20-%20%20component%20diagram.png" width="500" height="300">
 </p>
 
 <p align="center">
-  <img alt="API caching with Redis -  sequence diagram" src="images/API%20caching%20with%20Redis%20&%20AWS%20Lambda%20-%20%20sequence%20diagram.png" width="1000" height="500">
+  <img alt="API caching with Redis -  sequence diagram" src="images/API%20caching%20with%20Redis%20&%20AWS%20Lambda%20-%20%20sequence%20diagram.png" width="800" height="400">
 </p>
 
 
