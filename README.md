@@ -2,6 +2,7 @@
 
 This repository contains an example of using in serverless application Redis to cache external API responses. 
 
+Code source is a part of my [Dev.to article](https://dev.to/luafanti/api-caching-with-elasticache-redis-aws-lambda-82c) in which you can fine more info about the solution. 
 ## Deployment Overview
 
 The infrastructure in demo is provisioned using the CloudFormation template. The stack created with the default parameters will provide the following resources:
@@ -13,7 +14,7 @@ The infrastructure in demo is provisioned using the CloudFormation template. The
 
 ⚠️ Please note that your stack includes components (NAT & Redis) that will incur hourly costs even if you have AWS Free Tier.
 
-You can also create a stack in MultiAZ mode. Then the stack will create:
+You can also create a stack in `MultiAZ` mode. Then the stack will create:
 
 - VPC with two public and two private subnets
 - 2 NAT Gateway, one per private subnet
